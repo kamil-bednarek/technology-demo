@@ -1,0 +1,90 @@
+version: "3.7"
+services:
+  # Misc services
+  rabbit:
+    image: "rabbitmq:3-management"
+    hostname: "rabbitmq"
+    environment:
+      RABBITMQ_ERLANG_COOKIE: "AFDSGSAHDFJSFKGHASDFASDF"
+      RABBITMQ_DEFAULT_USER: "rabbitmq"
+      RABBITMQ_DEFAULT_PASS: "rabbitmq"
+      RABBITMQ_DEFAULT_VHOST: "/"
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    labels:
+      NAME: "rabbitmq"
+    volumes:
+      - "./config/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins"
+
+  redis:
+    image: "redis:latest"
+    hostname: "redis"
+    ports:
+      - "6379:6379"
+
+  nginx:
+    image: "nginx:latest"
+    depends_on:
+      - socket-node-1
+      - socket-node-2
+      - socket-node-3
+    volumes:
+      - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - 8080:80
+
+  front:
+    build:
+      context: ./services/frontend
+      args:
+        - HTTP_PORT=80
+    ports:
+      - 80:8080
+    volumes:
+      - ./services/frontend:/app
+    stdin_open: true
+    tty: true
+    environment:
+      - NODE_ENV=development
+      - HTTP_PORT=80
+
+  # WebSockets Cluster
+  socket-node-1:
+    image: "node:12"
+    container_name: "socket-node-1"
+    working_dir: "/app"
+    depends_on:
+      - redis
+      - rabbit
+    ports:
+      - "8081:3000"
+    volumes:
+      - ./services/socket:/app
+    command: "yarn run start"
+
+  socket-node-2:
+    image: "node:12"
+    container_name: "socket-node-2"
+    working_dir: "/app"
+    depends_on:
+      - redis
+      - rabbit
+    ports:
+      - "8082:3000"
+    volumes:
+      - ./services/socket:/app
+    command: "yarn run start"
+
+  socket-node-3:
+    image: "node:12"
+    container_name: "socket-node-3"
+    working_dir: "/app"
+    depends_on:
+      - redis
+      - rabbit
+    ports:
+      - "8083:3000"
+    volumes:
+      - ./services/socket:/app
+    command: "yarn run start"
